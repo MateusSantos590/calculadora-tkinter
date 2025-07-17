@@ -1,3 +1,25 @@
+"""
+Biblioteca que use:
+
+    - Tkinter -> Biblioteca padrao do Python para Interface Gráfica; Oferece botoes, janelas, caixas de textos, etc.
+        - A sila TTK -> é uma modulodentro da Biblioteca Tkinter; Este modulo oferece widgets com um visual mais moderno e personalizavel
+        - Messagebox -> é outro modul da Biblioteca Tkinter; Desta vez oferecendo: caixas de dialogo padronizadas, como mensagens de informação, avisos e erros
+    - Math -> Contem funções e contantes matematicas. Ultil para calculos complexos, como logaritmos, exponenciais, etc.
+    - Json -> Esta Biblioteca é usada para trabalhar com Dados (Javascript Object Notation). Essa biblioteca por exemplo pode ser usada caso voce queira Salvar as configuraçoes do seu programa.
+    - Pyperclip -> Imagine que a área de transferência (o clipboard) é uma "gaveta invisível" onde o seu computador guarda temporariamente a última coisa que você copiou.
+                    Quando você usa o comando pyperclip.copy("algum texto"), é como se você estivesse colocando o texto "algum texto" dentro dessa gaveta.
+                            Quando você usa o comando pyperclip.paste(), o seu código está pedindo para pegar o que está dentro da gaveta.
+    - Re -> A sigla 'RE' significa (Regular Expressions ou Expressoes Regulares). Ela é usada para realizar operacoes de busca e manipulacao de textos baseadas em padroes. É muito ultil para: validar formatos de entrada de dados, encontrar e substituir substings e analisar textos de forma flexivel.
+                -- O que é Substring? Em programação, substring é uma parte de uma palavra ou frase.
+                            Imagine a palavra "programação". Uma substring seria qualquer pedaço dela, como:
+                    "pro"
+                        "grama"
+                            "ação"
+                                "ão"
+
+É como se você estivesse recortando um pedaço de um texto maior. A substring é útil quando você precisa encontrar, extrair ou trabalhar com apenas uma parte de uma string (que é o nome técnico para texto). Por exemplo, você pode usar uma substring para verificar se um texto contém uma palavra específica, ou para extrair um código de um número de série.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 from ttkthemes import ThemedTk
@@ -30,7 +52,7 @@ class ScientificCalculator:
 
     def setup_ui(self):
         # Configuração do grid
-        for i in range(9):
+        for i in range(11):  # Ajustado para 11 linhas
             self.root.grid_rowconfigure(i, weight=1)
         for i in range(5):
             self.root.grid_columnconfigure(i, weight=1)
@@ -87,6 +109,39 @@ class ScientificCalculator:
             ttk.Button(self.root, text=text, command=cmd).grid(
                 row=row, column=col, sticky="nsew", padx=2, pady=2)
 
+    def is_valid_expression(self, expr):
+        """Valida a expressão usando regex para segurança"""
+        # Padrão que permite números, operadores, funções matemáticas e constantes
+        pattern = r'^[\d+\-*/().^%πe\s]+|(math\.)?(sin|cos|tan|asin|acos|atan|log|ln|sqrt|factorial|exp|abs|sinh|cosh|tanh|asinh|acosh|atanh)\(?$'
+        return re.match(pattern, expr, re.IGNORECASE) is not None
+
+    def prepare_expression(self, expr):
+        """Prepara a expressão para avaliação com substituições seguras"""
+        # Substitui operadores e constantes
+        replacements = [
+            (r'\^', '**'),
+            (r'π', 'math.pi'),
+            (r'e(?![a-zA-Z])', 'math.e'),  # Substitui 'e' apenas quando não for parte de uma função
+            (r'mod', '%'),
+            (r'√\(', 'math.sqrt('),
+            (r'ln\(', 'math.log('),
+            (r'log\(', 'math.log10('),
+            (r'abs\(', 'math.fabs(')
+        ]
+
+        for pattern, replacement in replacements:
+            expr = re.sub(pattern, replacement, expr)
+
+        return expr
+
+    def has_balanced_parentheses(self, expr):
+        """Verifica parênteses balanceados usando regex"""
+        # Remove tudo que não são parênteses e depois verifica balanceamento
+        clean_expr = re.sub(r'[^()]', '', expr)
+        while re.search(r'\(\)', clean_expr):
+            clean_expr = re.sub(r'\(\)', '', clean_expr)
+        return len(clean_expr) == 0
+
     def button_click(self, value):
         if value == '=':
             self.calculate()
@@ -97,9 +152,9 @@ class ScientificCalculator:
         elif value == 'ANS' and self.last_result:
             self.expressao += str(self.last_result)
         elif value == 'π':
-            self.expressao += str(math.pi)
+            self.expressao += 'π'
         elif value == 'e':
-            self.expressao += str(math.e)
+            self.expressao += 'e'
         elif value == '°⟲rad':
             self.toggle_deg_rad()
             return
@@ -112,17 +167,17 @@ class ScientificCalculator:
             self.show_hyperbolic_menu()
             return
         elif value in ['ln', 'log', '√']:
-            self.expressao += f'math.{value[:3]}(' if value != '√' else 'math.sqrt('
+            self.expressao += f'{value}('
         elif value == 'mod':
-            self.expressao += '%'
+            self.expressao += 'mod'
         elif value == 'x²':
-            self.expressao += '**2'
+            self.expressao += '^2'
         elif value == 'x³':
-            self.expressao += '**3'
+            self.expressao += '^3'
         elif value == 'x^y':
-            self.expressao += '**'
+            self.expressao += '^'
         elif value == '10^x':
-            self.expressao += '10**'
+            self.expressao += '10^'
         elif value == 'e^x':
             self.expressao += 'math.exp('
         elif value == '1/x':
@@ -165,15 +220,22 @@ class ScientificCalculator:
 
     def calculate(self):
         try:
-            # Substitui constantes especiais
-            expr = self.expressao.replace('^', '**')
+            # Validação com regex
+            if not self.is_valid_expression(self.expressao):
+                raise ValueError("Expressão contém caracteres inválidos")
 
-            # Verifica parênteses balanceados
-            if expr.count('(') != expr.count(')'):
+            if not self.has_balanced_parentheses(self.expressao):
                 raise ValueError("Parênteses não balanceados")
 
+            # Prepara a expressão
+            expr = self.prepare_expression(self.expressao)
+
             # Calcula o resultado
-            resultado = eval(expr, {'math': math})
+            resultado = eval(expr, {'math': math, '__builtins__': None})
+
+            # Formata o resultado para remover .0 de números inteiros
+            if isinstance(resultado, float) and resultado.is_integer():
+                resultado = int(resultado)
 
             # Armazena no histórico
             entry = f"{self.expressao} = {resultado}"
@@ -184,21 +246,47 @@ class ScientificCalculator:
             self.last_result = resultado
             self.expressao = str(resultado)
         except Exception as e:
-            self.expressao = "Erro"
-            print(f"Erro no cálculo: {e}")
+            self.handle_calculation_error(e)
 
         self.update_display()
+
+    def handle_calculation_error(self, error):
+        """Trata diferentes tipos de erros com mensagens específicas"""
+        error_msg = str(error)
+
+        if re.search(r'division by zero', error_msg, re.IGNORECASE):
+            self.expressao = "Erro: Divisão por zero"
+        elif re.search(r'math domain error', error_msg, re.IGNORECASE):
+            self.expressao = "Erro: Domínio inválido"
+        elif re.search(r'factorial', error_msg, re.IGNORECASE):
+            self.expressao = "Erro: Fatorial inválido"
+        elif re.search(r'balanced', error_msg, re.IGNORECASE):
+            self.expressao = "Erro: Parênteses não balanceados"
+        else:
+            self.expressao = "Erro na expressão"
+
+        print(f"Erro no cálculo: {error_msg}")
 
     def clear(self):
         self.expressao = ""
         self.update_display()
 
     def backspace(self):
-        self.expressao = self.expressao[:-1]
+        # Remove o último caractere, tratando funções especiais
+        if re.search(r'math\.\w+\($', self.expressao):
+            # Se for uma função matemática, remove toda a função
+            self.expressao = re.sub(r'math\.\w+\($', '', self.expressao)
+        else:
+            self.expressao = self.expressao[:-1]
         self.update_display()
 
     def copy_result(self):
-        pyperclip.copy(self.visor.get())
+        # Copia apenas o resultado numérico se houver
+        match = re.search(r'[-+]?\d*\.?\d+', self.visor.get())
+        if match:
+            pyperclip.copy(match.group())
+        else:
+            pyperclip.copy(self.visor.get())
 
     def toggle_theme(self):
         self.tema_claro = not self.tema_claro
@@ -214,11 +302,16 @@ class ScientificCalculator:
 
     def memory_add(self):
         try:
-            value = float(self.visor.get())
-            self.memory += value
-            messagebox.showinfo("Memória", f"Valor {value} adicionado à memória. Total: {self.memory}")
-        except:
-            messagebox.showerror("Erro", "Valor inválido para memória")
+            # Extrai o número do visor usando regex
+            match = re.search(r'[-+]?\d*\.?\d+', self.visor.get())
+            if match:
+                value = float(match.group())
+                self.memory += value
+                messagebox.showinfo("Memória", f"Valor {value} adicionado à memória. Total: {self.memory}")
+            else:
+                raise ValueError("Nenhum número válido encontrado")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Valor inválido para memória: {str(e)}")
 
     def memory_recall(self):
         self.expressao += str(self.memory)
@@ -259,13 +352,14 @@ class ScientificCalculator:
         scrollbar.config(command=history_text.yview)
 
         for item in reversed(self.historico):
-            history_text.insert('end', item + '\n\n')
+            # Destaca resultados com regex
+            highlighted = re.sub(r'(=.*)', r'\1', item)
+            history_text.insert('end', highlighted + '\n\n')
 
         history_text.config(state='disabled')
 
-        # Botão para limpar histórico
         clear_btn = ttk.Button(frame, text="Limpar Histórico",
-                             command=lambda: self.clear_history(history_text))
+                               command=lambda: self.clear_history(history_text))
         clear_btn.pack(pady=5)
 
     def clear_history(self, history_text):
