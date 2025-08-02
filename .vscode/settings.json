@@ -15,5 +15,8 @@
             "database": "mysql",
             "password": "M14785382c"
         }
+    ],
+    "python.analysis.extraPaths": [
+        "./Gerador_senhas_"
     ]
 }
